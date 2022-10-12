@@ -1,4 +1,4 @@
-//BIMprototype contains all necessary header files and variables.
+//BIMcurvedLinU contains all necessary header files and variables.
 #include"./Headers/BIMcurvedLinU.h"
 #include<mpi/mpi.h>
 
