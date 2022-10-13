@@ -753,14 +753,14 @@ class BIMobjects: public mesh
             ThreeDVector r = xPrime - x0, gHat(0.0, -1.0, 0.0);
             double modR = r.norm();
 
-            //Add torque as well:
-            ThreeDVector b = (gHat + r*(r.dot(gHat)/pow(modR, 2.0)) )*(3.0/(4.0*modR));    // size (a) = 1; sphere of radius a=1 falls with terminal speed = 1;
+            ThreeDVector torque(0.0, 0.0, 0.0);
+            ThreeDVector b = (gHat + r*(r.dot(gHat)/pow(modR, 2.0)) )*(3.0/(4.0*modR));// + r.cross(torque)*(3.0/(2.0*pow(modR,3.0)));    // size (a) = 1; sphere of radius a=1 falls with terminal speed = 1;
                 
             for (int i = 0; i < elementsInGlobalIndx[GIndx].size(); i++)    // iterate over all elements sharing the common GIndx
             {
                 int eIndx = elementsInGlobalIndx[GIndx][i]; // get the element index
                 // Top is very expensive!!!
-                ThreeDVector Top = integralDLOp(eIndx, GIndx);  
+                ThreeDVector Top = integralDLOp(eIndx, GIndx)*2.0;  
                 res = res + b - Prb + uS[GIndx] - Top;    
 
             }
