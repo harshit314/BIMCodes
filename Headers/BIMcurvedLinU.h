@@ -8,7 +8,7 @@
 
 using namespace std;
 
-// defined in BIMprototype header:
+// parameters:
 ifstream quadratureDat;
 int nPrecision = 14;
 
