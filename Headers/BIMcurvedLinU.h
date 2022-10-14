@@ -600,8 +600,8 @@ class BIMobjects: public mesh
     {
         mesh::refineMesh(nTimes);
         initializeUs();
+        updateArea();   //set area before updating x0.
         updateX0();
-        updateArea();
         getItensor();
     }
     //*********define functions to transform the mesh*************
