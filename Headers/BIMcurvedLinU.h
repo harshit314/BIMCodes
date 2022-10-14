@@ -402,6 +402,7 @@ class BIMobjects: public mesh
 {
     protected:
     ThreeDVector uRBAux, omegaAux;
+    double uNormalAux;
     vector<ThreeDVector> Itensor, ItensorInv;
 
     vector<double> xi, eta, w; //quadrature points for all elements; assigned using quadratureDat file
@@ -498,6 +499,31 @@ class BIMobjects: public mesh
             }
         }
         return res;
+    }
+
+    ThreeDVector getNormalVector(int eIndx, int GIndx)
+    {
+        //get global coordinates of the element:
+        ThreeDVector x1 = globalCoord[element[eIndx].x[0]].x;
+        ThreeDVector x2 = globalCoord[element[eIndx].x[1]].x;
+        ThreeDVector x3 = globalCoord[element[eIndx].x[2]].x;
+        // get midPoints of elements:
+        ThreeDVector x4 = globalCoord[elementMid[eIndx].x[0]].x;
+        ThreeDVector x5 = globalCoord[elementMid[eIndx].x[1]].x;
+        ThreeDVector x6 = globalCoord[elementMid[eIndx].x[2]].x;
+            
+        double zetaIn = 0.0, etaIn = 0.0, xiIn = 0.0;
+        if(element[eIndx].x[0] == GIndx)    zetaIn = 1.0;
+        else if(element[eIndx].x[1] == GIndx)   xiIn = 1.0;
+        else    etaIn = 1.0;
+        
+        //basis vectors:
+        ThreeDVector eXi = x1*(1.0-4.0*zetaIn) + x2*(4.0*xiIn - 1.0) + x4*(4.0*zetaIn - 4.0*xiIn) + x5*(4.0*etaIn) - x6*(4.0*etaIn);
+        ThreeDVector eEta = x1*(1.0-4.0*zetaIn) + x3*(4.0*etaIn - 1.0) - x4*(4.0*xiIn) + x5*(4.0*xiIn) + x6*(4.0*zetaIn - 4.0*etaIn);
+
+        ThreeDVector normal = eXi.cross(eEta);
+        return normal.normalize();
+
     }
 
     //******Update area and x0********
@@ -736,6 +762,12 @@ class BIMobjects: public mesh
         return res;
     }
 
+    //integrate to get uNormal:
+    static ThreeDVector getUnormal(ThreeDVector x, ThreeDVector x0, ThreeDVector uS, double area, vector<ThreeDVector> ItensorInv)
+    {
+        return uS*(1.0/area); 
+    }
+
     //********* BIE for ith element***************
     void picardIterate(int GIndx, int myStartGC, int myEndGC)
     {
@@ -754,15 +786,14 @@ class BIMobjects: public mesh
             double modR = r.norm();
 
             ThreeDVector torque(0.0, 0.0, 0.0);
-            ThreeDVector b = (gHat + r*(r.dot(gHat)/pow(modR, 2.0)) )*(3.0/(4.0*modR));// + r.cross(torque)*(3.0/(2.0*pow(modR,3.0)));    // size (a) = 1; sphere of radius a=1 falls with terminal speed = 1;
+            ThreeDVector b = (gHat + r*(r.dot(gHat)/pow(modR, 2.0)) )*(3.0/(4.0*modR)) + r.cross(torque)*(3.0/(2.0*pow(modR,3.0)));    // size (a) = 1; sphere of radius a=1 falls with terminal speed = 1;
                 
             for (int i = 0; i < elementsInGlobalIndx[GIndx].size(); i++)    // iterate over all elements sharing the common GIndx
             {
                 int eIndx = elementsInGlobalIndx[GIndx][i]; // get the element index
                 // Top is very expensive!!!
                 ThreeDVector Top = integralDLOp(eIndx, GIndx)*2.0;  
-                res = res + b - Prb + uS[GIndx] - Top;    
-
+                res = res + b - Prb + getNormalVector(eIndx, GIndx)*uNormalAux + uS[GIndx] - Top;    
             }
             uSNxt[GIndx] = res*(1.0/elementsInGlobalIndx[GIndx].size());    //take average of contribution from all elements sharing the GIndx.
             
@@ -776,6 +807,7 @@ class BIMobjects: public mesh
         uS = uSNxt; 
         uRBAux = integrateVectorfunc(&BIMobjects::getURB);
         omegaAux = integrateVectorfunc(&BIMobjects::getOmegaRB);
+        uNormalAux = integratefuncDotDa(&BIMobjects::getUnormal);
     }
 
     // after picard iterations, get uS using uS->Prb[uS]; (earlier uS was auxillary!)
