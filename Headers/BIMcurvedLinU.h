@@ -5,6 +5,7 @@
 #include<vector>
 #include<fstream>
 #include<iomanip>   // use cout<<fixed after setting precision set by cout.precision(n) 
+#include<unordered_map>
 
 using namespace std;
 
@@ -112,9 +113,9 @@ class mesh
 {   
     protected:
     //for each element: key labels the element; 3d vector stores global labels of three vertices that make up the element.
-    map<int, ThreeDVector> globalCoord, element, nextElement, elementMid;    
+    unordered_map<int, ThreeDVector> globalCoord, element, nextElement, elementMid;    
     //store element indices in global index:
-    map<int, vector<int> > elementsInGlobalIndx;    //elementsInGlobalIndx is a map, elementsInGlobalIndx[i] is a vector of int which has list of elements that contain the global index i. 
+    unordered_map<int, vector<int> > elementsInGlobalIndx;    //elementsInGlobalIndx is a map, elementsInGlobalIndx[i] is a vector of int which has list of elements that contain the global index i. 
     // each iteration appends globalCoord but all elements need to be recalculated.
     
     // return the labels of 2-simplices which contain the 0-simplex denoted by input argument label:
@@ -167,7 +168,7 @@ class mesh
         return otherElemLabel;
     }
 
-    void updateMidPtsIndx(int otherElemIndx, int currElemIndx, int * mGIndx, map<int, ThreeDVector> midPtsGIndx, ThreeDVector mPt, int edgeGIndx1, int edgeGIndx2)
+    void updateMidPtsIndx(int otherElemIndx, int currElemIndx, int * mGIndx, unordered_map<int, ThreeDVector>& midPtsGIndx, ThreeDVector mPt, int edgeGIndx1, int edgeGIndx2)
     {
         if(otherElemIndx < currElemIndx)   
         {
@@ -198,7 +199,7 @@ class mesh
         ThreeDVector m1, m2, m3, currElemGIndx; // get global indices of current element using currElemGIndx
         int nElem = 0; //count the current number of next elements
         
-        map<int, ThreeDVector> midPtsGIndx; // defined for each element, contains global index of midPoints of each element
+        unordered_map<int, ThreeDVector> midPtsGIndx; // defined for each element, contains global index of midPoints of each element
 
         for (int iElem = 0; iElem < element.size(); iElem++)
         {
@@ -252,7 +253,7 @@ class mesh
         elementMid.clear();
         ThreeDVector m1, m2, m3, currElemGIndx; // get global indices of current element using currElemGIndx
     
-        map<int, ThreeDVector> midPtsGIndx; // defined for each element, contains global index of midPoints of each element
+        unordered_map<int, ThreeDVector> midPtsGIndx; // defined for each element, contains global index of midPoints of each element
 
         for (int iElem = 0; iElem < element.size(); iElem++)
         {
@@ -532,32 +533,32 @@ class BIMobjects: public mesh
     void updateX0() { x0 = integrateVectorfunc(&BIMobjects::getX0)*(1.0/area);  }
 
     //*******define necessary functions for BIM*************
-    static ThreeDVector getX0(ThreeDVector x, ThreeDVector x0, ThreeDVector uS, double area, vector<ThreeDVector> ItensorInv)
+    static ThreeDVector getX0(ThreeDVector x, ThreeDVector x0, ThreeDVector uS, double area, vector<ThreeDVector>& ItensorInv)
     {
         //take x0 as zero here;
         return x;
     }
     
-    static double getArea(ThreeDVector x, ThreeDVector x0, ThreeDVector uS, double area, vector<ThreeDVector> ItensorInv)
+    static double getArea(ThreeDVector x, ThreeDVector x0, ThreeDVector uS, double area, vector<ThreeDVector>& ItensorInv)
     {
         return 1.0;
     }
 
-    static ThreeDVector Drow1(ThreeDVector x, ThreeDVector x0, ThreeDVector uS, double area, vector<ThreeDVector> ItensorInv)
+    static ThreeDVector Drow1(ThreeDVector x, ThreeDVector x0, ThreeDVector uS, double area, vector<ThreeDVector>& ItensorInv)
     {
         ThreeDVector xBar = x-x0, res;
         double xBarSq = xBar.dot(xBar);
         res = ThreeDVector(1.0, 0.0, 0.0)*xBarSq - xBar*xBar.x[0];
         return res;
     }
-    static ThreeDVector Drow2(ThreeDVector x, ThreeDVector x0, ThreeDVector uS, double area, vector<ThreeDVector> ItensorInv)
+    static ThreeDVector Drow2(ThreeDVector x, ThreeDVector x0, ThreeDVector uS, double area, vector<ThreeDVector>& ItensorInv)
     {
         ThreeDVector xBar = x-x0, res;
         double xBarSq = xBar.dot(xBar);
         res = ThreeDVector(0.0, 1.0, 0.0)*xBarSq - xBar*xBar.x[1];
         return res;
     }
-    static ThreeDVector Drow3(ThreeDVector x, ThreeDVector x0, ThreeDVector uS, double area, vector<ThreeDVector> ItensorInv)
+    static ThreeDVector Drow3(ThreeDVector x, ThreeDVector x0, ThreeDVector uS, double area, vector<ThreeDVector>& ItensorInv)
     {
         ThreeDVector xBar = x-x0, res;
         double xBarSq = xBar.dot(xBar);
@@ -567,7 +568,7 @@ class BIMobjects: public mesh
 
     public:
     ThreeDVector uRB, omega;// set them after converging through the picard iterates!
-    map<int, ThreeDVector> uS, uSNxt; // uS-> velocity for global index
+    unordered_map<int, ThreeDVector> uS, uSNxt; // uS-> velocity for global index
     double area; 
 
     BIMobjects(ThreeDVector * pts, int size): mesh(pts, size) 
@@ -629,7 +630,7 @@ class BIMobjects: public mesh
     //******* define functions for integration over elements ************
     // gives integral of f dot da, da pointing towards outer normal to the body
     //f = f(x, x0, uS, area, ItensorInv)
-    double integratefuncDotDa(ThreeDVector (*func)(ThreeDVector, ThreeDVector, ThreeDVector, double, vector<ThreeDVector>)) 
+    double integratefuncDotDa(ThreeDVector (*func)(ThreeDVector, ThreeDVector, ThreeDVector, double, vector<ThreeDVector>&)) //send vectors by reference
     {
         double res = 0.0;
         for (int iElem = 0; iElem < element.size(); iElem++)
@@ -670,7 +671,7 @@ class BIMobjects: public mesh
 
     // pass relevant object's variables as argument to the static functions!
     //f = f(x, x0, uS, area, ItensorInv)
-    ThreeDVector integrateVectorfunc(ThreeDVector (*func)(ThreeDVector, ThreeDVector, ThreeDVector, double, vector<ThreeDVector>))    
+    ThreeDVector integrateVectorfunc(ThreeDVector (*func)(ThreeDVector, ThreeDVector, ThreeDVector, double, vector<ThreeDVector>&))    //send vectors by reference
     {
         ThreeDVector res(0.0, 0.0, 0.0);
         for (int iElem = 0; iElem < element.size(); iElem++)
@@ -710,7 +711,7 @@ class BIMobjects: public mesh
 
     // pass relevant object's variables as argument to the static functions!
     //f = f(x, x0, uS, area, ItensorInv)
-    double integrateScalarfunc(double (*func)(ThreeDVector, ThreeDVector, ThreeDVector, double, vector<ThreeDVector>)) 
+    double integrateScalarfunc(double (*func)(ThreeDVector, ThreeDVector, ThreeDVector, double, vector<ThreeDVector>&)) //send vectors by reference
     {
         double res = 0.0;
         for (int iElem = 0; iElem < element.size(); iElem++)
@@ -750,12 +751,12 @@ class BIMobjects: public mesh
     }
 
     //integrate to get uRB.
-    static ThreeDVector getURB(ThreeDVector x, ThreeDVector x0, ThreeDVector uS, double area, vector<ThreeDVector> ItensorInv)
+    static ThreeDVector getURB(ThreeDVector x, ThreeDVector x0, ThreeDVector uS, double area, vector<ThreeDVector>& ItensorInv)
     {
         return uS*(1.0/area);   
     }
     //integrate to get omega.
-    static ThreeDVector getOmegaRB(ThreeDVector x, ThreeDVector x0, ThreeDVector uS, double area, vector<ThreeDVector> ItensorInv)
+    static ThreeDVector getOmegaRB(ThreeDVector x, ThreeDVector x0, ThreeDVector uS, double area, vector<ThreeDVector>& ItensorInv)
     {
         ThreeDVector xBar = x-x0;
         ThreeDVector res = ThreeDVector(ItensorInv[0].dot( xBar.cross(uS) ), ItensorInv[1].dot( xBar.cross(uS) ), ItensorInv[2].dot( xBar.cross(uS) ));
@@ -763,7 +764,7 @@ class BIMobjects: public mesh
     }
 
     //integrate to get uNormal:
-    static ThreeDVector getUnormal(ThreeDVector x, ThreeDVector x0, ThreeDVector uS, double area, vector<ThreeDVector> ItensorInv)
+    static ThreeDVector getUnormal(ThreeDVector x, ThreeDVector x0, ThreeDVector uS, double area, vector<ThreeDVector>& ItensorInv)
     {
         return uS*(1.0/area); 
     }
