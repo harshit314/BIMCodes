@@ -6,6 +6,7 @@
 #include<fstream>
 #include<iomanip>   // use cout<<fixed after setting precision set by cout.precision(n) 
 #include<unordered_map>
+#include"dumbbellParams.h"
 
 using namespace std;
 
@@ -378,8 +379,28 @@ class mesh
             globalCoord[iGC].x[2] *= c;
         }
     }
+    // scale differently across latitudes:
+    void dumbbellTransform(double rad, double vertSize) 
+    {
+        // dumbbell parameters:
+        dumbbellParams dSample(rad, vertSize);
 
-    //rotate points by theta about nHat about x0:
+        for (int iGC = 0; iGC < globalCoord.size(); iGC++)
+        {
+            //get cos(theta); specific for dumbbell:
+            ThreeDVector pt = globalCoord[iGC];
+            double cTheta = pt.x[2]/pt.norm();
+            
+            double scaleFactor = dSample.getR(cTheta);
+
+            //scale each global coordinate:
+            globalCoord[iGC].x[0] *= scaleFactor/pow(3.0, 0.5);
+            globalCoord[iGC].x[1] *= scaleFactor/pow(3.0, 0.5);
+            globalCoord[iGC].x[2] *= scaleFactor/pow(3.0, 0.5);
+        }
+    }
+
+    //rotate points by theta about nHat with x0 as its center:
     void rotate(ThreeDVector nHat, double theta) 
     {
         for (int iGC = 0; iGC < globalCoord.size(); iGC++)  
