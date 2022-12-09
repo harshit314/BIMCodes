@@ -468,13 +468,13 @@ class BIMobjects: public mesh
         uSNxt.clear();
         for (int iGC = 0; iGC < nCoordFlat; iGC++)
         {
-            uS[iGC] = ThreeDVector(0.694, -1.693, -0.3079); // uS defined for each 3 nodes of an element.
-            uSNxt[iGC] = ThreeDVector(0.694, -1.693, -0.3079);
+            uS[iGC] = ThreeDVector(0.0, -1.0, 0.0); // uS defined for each 3 nodes of an element.
+            uSNxt[iGC] = ThreeDVector(0.0, 0.0, 0.0);   // need to be zero after each iteration.
         }
     }
 
     //correct singularities!!! xi, eta and zeta at 1/3 don't give x = xM! Saves the 1/0 evaluation!
-    ThreeDVector integralDLOp(int eIndx, int GIndx)
+    ThreeDVector integralDLOp(int eIndx, int GIndx, BIMobjects otherObj, bool self)
     {
         ThreeDVector xPrime = globalCoord[GIndx];
         // ThreeDVector xBar = xPrime-x0;
@@ -483,13 +483,13 @@ class BIMobjects: public mesh
         {
            // if(iElem->first == eIndx)   continue;   //delU is zero anyway!
             //get global coordinates of the element:
-            ThreeDVector x1 = globalCoord[element[iElem].x[0]].x;
-            ThreeDVector x2 = globalCoord[element[iElem].x[1]].x;
-            ThreeDVector x3 = globalCoord[element[iElem].x[2]].x;
+            ThreeDVector x1 = otherObj.globalCoord[otherObj.element[iElem].x[0]].x;
+            ThreeDVector x2 = otherObj.globalCoord[otherObj.element[iElem].x[1]].x;
+            ThreeDVector x3 = otherObj.globalCoord[otherObj.element[iElem].x[2]].x;
             // get midPoints of elements:
-            ThreeDVector x4 = globalCoord[elementMid[iElem].x[0]].x;
-            ThreeDVector x5 = globalCoord[elementMid[iElem].x[1]].x;
-            ThreeDVector x6 = globalCoord[elementMid[iElem].x[2]].x;
+            ThreeDVector x4 = otherObj.globalCoord[otherObj.elementMid[iElem].x[0]].x;
+            ThreeDVector x5 = otherObj.globalCoord[otherObj.elementMid[iElem].x[1]].x;
+            ThreeDVector x6 = otherObj.globalCoord[otherObj.elementMid[iElem].x[2]].x;
             
           //  ThreeDVector delU = uS[iElem] - uS[eIndx];
 
@@ -510,9 +510,21 @@ class BIMobjects: public mesh
                 ThreeDVector xElem = x1*(zetaIn*(2.0*zetaIn-1.0)) + x2*(xiIn*(2.0*xiIn - 1.0)) + x3*(etaIn*(2.0*etaIn-1.0)) + x4*(4.0*zetaIn*xiIn) + x5*(4.0*xiIn*etaIn) + x6*(4.0*etaIn*zetaIn);
                 
                 //linear interpolation for uS:
-                ThreeDVector uSElem = uS[element[iElem].x[0]]*(zetaIn) + uS[element[iElem].x[1]]*(xiIn) + uS[element[iElem].x[2]]*(etaIn);
+                ThreeDVector uSElem = otherObj.uS[otherObj.element[iElem].x[0]]*(zetaIn) + otherObj.uS[otherObj.element[iElem].x[1]]*(xiIn) + otherObj.uS[otherObj.element[iElem].x[2]]*(etaIn);
 
-                ThreeDVector delU = uSElem - uS[GIndx];
+                ThreeDVector xDoublePrime = otherObj.globalCoord[GIndx];
+                int optIndx = GIndx;
+                
+                if(!self)
+                {
+                    for (int iG = 0; iG < otherObj.nCoordFlat; iG++)    // middle pts of elements as global indices start after nCoordFlat no. of GC.
+                    {
+                        ThreeDVector tmp = otherObj.globalCoord[iG];
+                        if( (xDoublePrime - xPrime).norm() <= (tmp - xPrime).norm() )   {   xDoublePrime = tmp; optIndx = iG;   }
+                    }
+                }
+                
+                ThreeDVector delU = uSElem - otherObj.uS[optIndx];    // need closest points
 
                 ThreeDVector r = xElem - xPrime;
                 double modR = r.norm();
@@ -617,6 +629,15 @@ class BIMobjects: public mesh
 
         // update area and x0 once integration over mesh is defined:
        // updateArea();
+    }
+
+    void resetUsNxt()
+    {
+        uSNxt.clear();
+        for (int iGC = 0; iGC < nCoordFlat; iGC++)
+        {
+            uSNxt[iGC] = ThreeDVector(0.0, 0.0, 0.0);   // need to be zero after each iteration.
+        }
     }
 
     void refineMesh(int nTimes)
@@ -792,32 +813,34 @@ class BIMobjects: public mesh
     }
 
     //********* BIE for ith element***************
-    void picardIterate(int GIndx, int myStartGC, int myEndGC, BIMobjects *otherObjects)
+    void picardIterate(int GIndx, vector<BIMobjects> otherObjects, int objectIndx)
     {
         ThreeDVector res(0.0, 0.0, 0.0);
-
-        if(GIndx<myStartGC || GIndx>=myEndGC)   
-        {
-            uSNxt[GIndx] = res;
-        }
-
-        else
         {
             ThreeDVector xPrime = globalCoord[GIndx];
             ThreeDVector Prb = uRBAux + omegaAux.cross(xPrime - x0);    
-            ThreeDVector r = xPrime - x0, gHat(0.0, -1.0, 0.0);
-            double modR = r.norm();
-
-            ThreeDVector torque(0.0, 0.0, 0.0);
+            ThreeDVector torque(0.0, 0.0, 0.0), b(0.0, 0.0, 0.0), uInf(0.0, 0.0, 0.0), gHat(0.0, -1.0, 0.0);    
             
-            ThreeDVector b = (gHat + r*(r.dot(gHat)/pow(modR, 2.0)) )*(3.0/(4.0*modR)) + r.cross(torque)*(3.0/(2.0*pow(modR,3.0)));    // size (a) = 1; sphere of radius a=1 falls with terminal speed = 1;
-                
+            for(int iOtherObj = 0; iOtherObj < otherObjects.size(); iOtherObj++)
+            {
+                ThreeDVector r = xPrime - otherObjects[iOtherObj].x0;
+                double modR = r.norm();
+                ThreeDVector torque(0.0, 0.0, 0.0);
+                b = b + (gHat + r*(r.dot(gHat)/pow(modR, 2.0)) )*(3.0/(4.0*modR)) + r.cross(torque)*(3.0/(2.0*pow(modR,3.0)));    // size (a) = 1; sphere of radius a=1 falls with terminal speed = 1;
+            }
+               
             for (int i = 0; i < elementsInGlobalIndx[GIndx].size(); i++)    // iterate over all elements sharing the common GIndx
             {
                 int eIndx = elementsInGlobalIndx[GIndx][i]; // get the element index
                 // Top is very expensive!!!
-                ThreeDVector Top = integralDLOp(eIndx, GIndx)*2.0;  
-                res = res + b - Prb + getNormalVector(eIndx, GIndx)*uNormalAux + uS[GIndx] - Top;    
+                ThreeDVector Top(0.0, 0.0, 0.0);  
+                for (int iOther = 0; iOther < otherObjects.size(); iOther++)
+                {
+                    bool self = objectIndx==iOther?true:false;
+                    Top = Top + integralDLOp(eIndx, GIndx, otherObjects[iOther], self);
+                }
+
+                res = res + b + uInf - Prb + uS[GIndx] - Top;// + getNormalVector(eIndx, GIndx)*uNormalAux;    
             }
             uSNxt[GIndx] = res*(1.0/elementsInGlobalIndx[GIndx].size());    //take average of contribution from all elements sharing the GIndx.
             
@@ -831,7 +854,7 @@ class BIMobjects: public mesh
         uS = uSNxt; 
         uRBAux = integrateVectorfunc(&BIMobjects::getURB);
         omegaAux = integrateVectorfunc(&BIMobjects::getOmegaRB);
-        uNormalAux = integratefuncDotDa(&BIMobjects::getUnormal);
+     //   uNormalAux = integratefuncDotDa(&BIMobjects::getUnormal);
     }
 
     // after picard iterations, get uS using uS->Prb[uS]; (earlier uS was auxillary!)

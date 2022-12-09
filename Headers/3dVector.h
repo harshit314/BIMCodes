@@ -55,6 +55,7 @@ class ThreeDVector
     {
         double mag = this->norm();
         ThreeDVector res = this->x;
+        if(mag == 0.0)  return res;
         return res*(1.0/mag);
     }
 

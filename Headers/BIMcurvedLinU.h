@@ -71,6 +71,7 @@ class ThreeDVector
     {
         double mag = this->norm();
         ThreeDVector res = this->x;
+        if(mag == 0.0)  return res;
         return res*(1.0/mag);
     }
 
@@ -467,8 +468,8 @@ class BIMobjects: public mesh
         uSNxt.clear();
         for (int iGC = 0; iGC < nCoordFlat; iGC++)
         {
-            uS[iGC] = ThreeDVector(0.694, -1.693, -0.3079); // uS defined for each 3 nodes of an element.
-            uSNxt[iGC] = ThreeDVector(0.694, -1.693, -0.3079);
+            uS[iGC] = ThreeDVector(0.0, -1.0, 0.0); // uS defined for each 3 nodes of an element.
+            uSNxt[iGC] = ThreeDVector(0.0, 0.0, 0.0);
         }
     }
 
@@ -617,6 +618,16 @@ class BIMobjects: public mesh
         // update area and x0 once integration over mesh is defined:
        // updateArea();
     }
+
+    void resetUsNxt()
+    {
+        uSNxt.clear();
+        for (int iGC = 0; iGC < nCoordFlat; iGC++)
+        {
+            uSNxt[iGC] = ThreeDVector(0.0, 0.0, 0.0);   // need to be zero after each iteration.
+        }
+    }
+
 
     void refineMesh(int nTimes)
     {
@@ -791,16 +802,9 @@ class BIMobjects: public mesh
     }
 
     //********* BIE for ith element***************
-    void picardIterate(int GIndx, int myStartGC, int myEndGC)
+    void picardIterate(int GIndx)
     {
         ThreeDVector res(0.0, 0.0, 0.0);
-
-        if(GIndx<myStartGC || GIndx>=myEndGC)   
-        {
-            uSNxt[GIndx] = res;
-        }
-
-        else
         {
             ThreeDVector xPrime = globalCoord[GIndx];
             ThreeDVector Prb = uRBAux + omegaAux.cross(xPrime - x0);    

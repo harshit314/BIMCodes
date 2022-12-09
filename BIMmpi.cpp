@@ -56,9 +56,10 @@ int main(int argc, char **argv)
     spheroid.refreshuS();
     for (int iter = 0; iter < 10; iter++)
     {
-        for (int iGC = 0; iGC < spheroid.nCoordFlat; iGC++)
+        spheroid.resetUsNxt();
+        for (int iGC = myStartGC; iGC < myEndGC; iGC++)
         {
-            spheroid.picardIterate(iGC, myStartGC, myEndGC);
+            spheroid.picardIterate(iGC);
         }
         // get correct uSNxt for all processes. 
         for (int iGC = 0; iGC < spheroid.nCoordFlat; iGC++)

@@ -22,7 +22,7 @@ int main(int argc, char **argv)
     
     BIMobjects dumbbell(initPts, 12);    // no. of vertices of icosahedron = 12.
     
-    dumbbell.refineMesh(3);
+    dumbbell.refineMesh(4);
 
     if(myRank==0)   cout<<"number of elements: "<<dumbbell.getElementSize()<<endl;
 
@@ -54,11 +54,12 @@ int main(int argc, char **argv)
     double startTime = MPI_Wtime();
     
     dumbbell.refreshuS();
-    for (int iter = 0; iter < 1; iter++)
+    for (int iter = 0; iter < 10; iter++)
     {
-        for (int iGC = 0; iGC < dumbbell.nCoordFlat; iGC++)
+        dumbbell.resetUsNxt();
+        for (int iGC = myStartGC; iGC < myEndGC; iGC++)
         {
-            dumbbell.picardIterate(iGC, myStartGC, myEndGC);
+            dumbbell.picardIterate(iGC);
         }
         // get correct uSNxt for all processes. 
         for (int iGC = 0; iGC < dumbbell.nCoordFlat; iGC++)
