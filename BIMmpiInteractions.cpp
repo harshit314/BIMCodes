@@ -20,28 +20,33 @@ int main(int argc, char **argv)
                                 ThreeDVector(1, phi, 0), ThreeDVector(-1, phi, 0), ThreeDVector(1, -phi, 0), ThreeDVector(-1, -phi, 0),
                                 ThreeDVector(phi, 0, 1), ThreeDVector(-phi, 0, 1), ThreeDVector(phi, 0, -1), ThreeDVector(-phi, 0, -1)}; //vertices of icosahedron.
     
-    BIMobjects sphereTemplate(initPts, 12);    // no. of vertices of icosahedron = 12.
+    BIMobjects spheroidTemplate(initPts, 12);    // no. of vertices of icosahedron = 12.
     
-    sphereTemplate.refineMesh(3);
+    spheroidTemplate.refineMesh(3);
 
-    vector<BIMobjects> spheres;
+    spheroidTemplate.scale(0.124656, 1.0, 0.124656);
+
+    vector<BIMobjects> spheroids;
     
-    spheres.push_back(sphereTemplate);
-    spheres.push_back(sphereTemplate);
+    spheroids.push_back(spheroidTemplate);
+
+    spheroidTemplate.translate(ThreeDVector(4.0, 0.0, 0.0));
+
+    spheroids.push_back(spheroidTemplate);
     
 
-    if(myRank==0)   cout<<"number of elements: "<<spheres[0].getElementSize()<<endl;
+    if(myRank==0)   cout<<"number of elements: "<<spheroids[0].getElementSize()<<endl;
 
-    spheres[1].translate(ThreeDVector(4.0, 0.0, 0.0) );
+    spheroids[1].translate(ThreeDVector(4.0, 0.0, 0.0) );
     
-    if(myRank==0)   { spheres[0].storeElemDat(); }
+    if(myRank==0)   { spheroids[0].storeElemDat(); }
     
     //determine workloads for each core:
     int workloadVCalc[worldSize];
     for (int i = 0; i < worldSize; i++)
     {
-        workloadVCalc[i] = spheres[0].nCoordFlat/worldSize; //nCoordFlat doesnt change for different objects made out of sphere.
-        if(i < spheres[0].nCoordFlat%worldSize) workloadVCalc[i]++; // take care of remainders.
+        workloadVCalc[i] = spheroids[0].nCoordFlat/worldSize; //nCoordFlat doesnt change for different objects made out of sphere.
+        if(i < spheroids[0].nCoordFlat%worldSize) workloadVCalc[i]++; // take care of remainders.
     }
 
     myStartGC = 0;
@@ -56,11 +61,11 @@ int main(int argc, char **argv)
     //*************//
     
     if(myRank==0)    cout<<"Assigning closest Indices..."<<endl;
-    for (int iObj = 0; iObj < spheres.size(); iObj++)
+    for (int iObj = 0; iObj < spheroids.size(); iObj++)
     {
-        spheres[iObj].refreshuS();
+        spheroids[iObj].refreshuS();
         // set closestGIndx for each pair of BIMobjects:
-        spheres[iObj].setClosestGIndx(spheres, iObj);
+        spheroids[iObj].setClosestGIndx(spheroids, iObj);
     }
     if(myRank==0)    cout<<"Done. Starting Iterations..."<<endl;
     
@@ -68,42 +73,42 @@ int main(int argc, char **argv)
     
     for (int iter = 0; iter < 10; iter++)
     {
-        for (int iObj = 0; iObj < spheres.size(); iObj++)
+        for (int iObj = 0; iObj < spheroids.size(); iObj++)
         {
-            spheres[iObj].resetUsNxt();
+            spheroids[iObj].resetUsNxt();
             for (int iGC = myStartGC; iGC < myEndGC; iGC++)
             {
-                spheres[iObj].picardIterate(iGC, spheres, iObj);
+                spheroids[iObj].picardIterate(iGC, spheroids, iObj);
             }
             // get correct uSNxt for all processes. 
-            for (int iGC = 0; iGC < spheres[iObj].nCoordFlat; iGC++)
+            for (int iGC = 0; iGC < spheroids[iObj].nCoordFlat; iGC++)
             {
-                double senduSNxt[3] = {spheres[iObj].uSNxt[iGC].x[0], spheres[iObj].uSNxt[iGC].x[1], spheres[iObj].uSNxt[iGC].x[2]};           
-                double getuSNxt[3] = {spheres[iObj].uSNxt[iGC].x[0], spheres[iObj].uSNxt[iGC].x[1], spheres[iObj].uSNxt[iGC].x[2]};
+                double senduSNxt[3] = {spheroids[iObj].uSNxt[iGC].x[0], spheroids[iObj].uSNxt[iGC].x[1], spheroids[iObj].uSNxt[iGC].x[2]};           
+                double getuSNxt[3] = {spheroids[iObj].uSNxt[iGC].x[0], spheroids[iObj].uSNxt[iGC].x[1], spheroids[iObj].uSNxt[iGC].x[2]};
                         
                 MPI_Allreduce(&senduSNxt, &getuSNxt, 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-                spheres[iObj].uSNxt[iGC].set(getuSNxt[0], getuSNxt[1], getuSNxt[2]);
+                spheroids[iObj].uSNxt[iGC].set(getuSNxt[0], getuSNxt[1], getuSNxt[2]);
             }
-            spheres[iObj].refreshuS();  //use new values as soon as you get them.
+            spheroids[iObj].refreshuS();  //use new values as soon as you get them.
         }
         
         if(myRank==0)    cout<<"iteration no:"<<iter+1<<endl;
-        if(myRank==0)    cout<<spheres[0].uS[0].x[0]<<", "<<spheres[0].uS[0].x[1]<<", "<<spheres[0].uS[0].x[2]<<endl;
+        if(myRank==0)    cout<<spheroids[0].uS[0].x[0]<<", "<<spheroids[0].uS[0].x[1]<<", "<<spheroids[0].uS[0].x[2]<<endl;
     }
     
-    for (int iObj = 0; iObj < spheres.size(); iObj++)
+    for (int iObj = 0; iObj < spheroids.size(); iObj++)
     {
-        spheres[iObj].projectRB(); 
+        spheroids[iObj].projectRB(); 
 
-        spheres[iObj].uRB = spheres[iObj].integrateVectorfunc(&BIMobjects::getURB);
-        spheres[iObj].omega = spheres[iObj].integrateVectorfunc(&BIMobjects::getOmegaRB);
+        spheroids[iObj].uRB = spheroids[iObj].integrateVectorfunc(&BIMobjects::getURB);
+        spheroids[iObj].omega = spheroids[iObj].integrateVectorfunc(&BIMobjects::getOmegaRB);
     }    
     
-    if(myRank==0)    cout<<"spheres[0]URB: "<<spheres[0].uRB.x[0]<<", "<<spheres[0].uRB.x[1]<<", "<<spheres[0].uRB.x[2]<<endl;
-    if(myRank==0)    cout<<"spheres[0]omega: "<<spheres[0].omega.x[0]<<", "<<spheres[0].omega.x[1]<<", "<<spheres[0].omega.x[2]<<endl;
+    if(myRank==0)    cout<<"spheroids[0]URB: "<<spheroids[0].uRB.x[0]<<", "<<spheroids[0].uRB.x[1]<<", "<<spheroids[0].uRB.x[2]<<endl;
+    if(myRank==0)    cout<<"spheroids[0]omega: "<<spheroids[0].omega.x[0]<<", "<<spheroids[0].omega.x[1]<<", "<<spheroids[0].omega.x[2]<<endl;
     
-    if(myRank==0)    cout<<"spheres[1]URB: "<<spheres[1].uRB.x[0]<<", "<<spheres[1].uRB.x[1]<<", "<<spheres[1].uRB.x[2]<<endl;
-    if(myRank==0)    cout<<"spheres[1]omega: "<<spheres[1].omega.x[0]<<", "<<spheres[1].omega.x[1]<<", "<<spheres[1].omega.x[2]<<endl;
+    if(myRank==0)    cout<<"spheroids[1]URB: "<<spheroids[1].uRB.x[0]<<", "<<spheroids[1].uRB.x[1]<<", "<<spheroids[1].uRB.x[2]<<endl;
+    if(myRank==0)    cout<<"spheroids[1]omega: "<<spheroids[1].omega.x[0]<<", "<<spheroids[1].omega.x[1]<<", "<<spheroids[1].omega.x[2]<<endl;
     
     double endTime = MPI_Wtime();
     if(myRank==0)   cout<<"time taken: "<<(endTime-startTime)<<endl;
