@@ -36,8 +36,6 @@ int main(int argc, char **argv)
     
 
     if(myRank==0)   cout<<"number of elements: "<<spheroids[0].getElementSize()<<endl;
-
-    spheroids[1].translate(ThreeDVector(4.0, 0.0, 0.0) );
     
     if(myRank==0)   { spheroids[0].storeElemDat(); }
     
