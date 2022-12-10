@@ -427,7 +427,8 @@ class BIMobjects: public mesh
     ThreeDVector uRBAux, omegaAux;
     double uNormalAux;
     vector<ThreeDVector> Itensor, ItensorInv;
-
+    unordered_map<int, int> closestGIndx;
+        
     vector<double> xi, eta, w; //quadrature points for all elements; assigned using quadratureDat file
 
     void getItensor()
@@ -474,7 +475,7 @@ class BIMobjects: public mesh
     }
 
     //correct singularities!!! xi, eta and zeta at 1/3 don't give x = xM! Saves the 1/0 evaluation!
-    ThreeDVector integralDLOp(int eIndx, int GIndx, BIMobjects *otherObj, bool self)
+    ThreeDVector integralDLOp(int eIndx, int GIndx, BIMobjects *otherObj, int closestGIndx, bool self)
     {
         ThreeDVector xPrime = globalCoord[GIndx];
         // ThreeDVector xBar = xPrime-x0;
@@ -517,11 +518,8 @@ class BIMobjects: public mesh
                 
                 if(!self)
                 {
-                    for (int iG = 0; iG < otherObj->nCoordFlat; iG++)    // middle pts of elements as global indices start after nCoordFlat no. of GC.
-                    {
-                        ThreeDVector tmp = otherObj->globalCoord[iG];
-                        if( (xDoublePrime - xPrime).norm() <= (tmp - xPrime).norm() )   {   xDoublePrime = tmp; optIndx = iG;   }
-                    }
+                    xDoublePrime = otherObj->globalCoord[closestGIndx];
+                    optIndx = closestGIndx;
                 }
                 
                 ThreeDVector delU = uSElem - otherObj->uS[optIndx];    // need closest points
@@ -604,7 +602,7 @@ class BIMobjects: public mesh
     ThreeDVector uRB, omega;// set them after converging through the picard iterates!
     unordered_map<int, ThreeDVector> uS, uSNxt; // uS-> velocity for global index
     double area; 
-
+    
     BIMobjects(ThreeDVector * pts, int size): mesh(pts, size) 
     {
         //set quadrature data:
@@ -648,6 +646,36 @@ class BIMobjects: public mesh
         updateX0();
         getItensor();
     }
+
+    void setClosestGIndx(vector<BIMobjects> otherObjects, int objIndx)
+    {
+        closestGIndx.clear();
+        for (int jObj = 0; jObj < otherObjects.size(); jObj++)
+        {
+            if(objIndx == jObj) continue;
+            
+            int cGIndx = 0;
+            ThreeDVector best = otherObjects[jObj].globalCoord[cGIndx] - globalCoord[0];
+            for (int selfG = 0; selfG < nCoordFlat; selfG++)
+            {
+                ThreeDVector xPrime = globalCoord[selfG];
+
+                for (int iG = 0; iG < otherObjects[jObj].nCoordFlat; iG++)    // middle pts of elements as global indices start after nCoordFlat no. of GC.
+                {
+                    ThreeDVector bestTmp = otherObjects[jObj].globalCoord[iG] - xPrime;
+                    if( best.norm() >= bestTmp.norm() )   
+                    {   
+                        best = bestTmp;
+                        cGIndx = iG;   
+                    }   
+                }
+            }
+
+            closestGIndx[jObj] = cGIndx;
+        }
+        
+    }
+
     //*********define functions to transform the mesh*************
     // make ellipsoid out of sphere:
     void scale(double a, double b, double c)    // function overriden, use derived class to call functions of the base class.
@@ -837,7 +865,7 @@ class BIMobjects: public mesh
                 for (int iOther = 0; iOther < otherObjects.size(); iOther++)
                 {
                     bool self = objectIndx==iOther?true:false;
-                    Top = Top + integralDLOp(eIndx, GIndx, &otherObjects[iOther], self);
+                    Top = Top + integralDLOp(eIndx, GIndx, &otherObjects[iOther], closestGIndx[iOther], self);
                 }
 
                 res = res + b + uInf - Prb + uS[GIndx] - Top;// + getNormalVector(eIndx, GIndx)*uNormalAux;    

@@ -22,7 +22,7 @@ int main(int argc, char **argv)
     
     BIMobjects sphereTemplate(initPts, 12);    // no. of vertices of icosahedron = 12.
     
-    sphereTemplate.refineMesh(4);
+    sphereTemplate.refineMesh(3);
 
     vector<BIMobjects> spheres;
     
@@ -34,7 +34,7 @@ int main(int argc, char **argv)
 
     spheres[1].translate(ThreeDVector(4.0, 0.0, 0.0) );
     
-    if(myRank==0)   { spheres[0].storeElemDat(); spheres[1].storeElemDat();  }
+    if(myRank==0)   { spheres[0].storeElemDat(); }
     
     //determine workloads for each core:
     int workloadVCalc[worldSize];
@@ -55,10 +55,16 @@ int main(int argc, char **argv)
 
     //*************//
     
-    double startTime = MPI_Wtime();
+    if(myRank==0)    cout<<"Assigning closest Indices..."<<endl;
+    for (int iObj = 0; iObj < spheres.size(); iObj++)
+    {
+        spheres[iObj].refreshuS();
+        // set closestGIndx for each pair of BIMobjects:
+        spheres[iObj].setClosestGIndx(spheres, iObj);
+    }
+    if(myRank==0)    cout<<"Done. Starting Iterations..."<<endl;
     
-    spheres[0].refreshuS();
-    spheres[1].refreshuS();
+    double startTime = MPI_Wtime();
     
     for (int iter = 0; iter < 10; iter++)
     {
