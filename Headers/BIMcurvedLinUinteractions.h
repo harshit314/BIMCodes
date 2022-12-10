@@ -474,7 +474,7 @@ class BIMobjects: public mesh
     }
 
     //correct singularities!!! xi, eta and zeta at 1/3 don't give x = xM! Saves the 1/0 evaluation!
-    ThreeDVector integralDLOp(int eIndx, int GIndx, BIMobjects otherObj, bool self)
+    ThreeDVector integralDLOp(int eIndx, int GIndx, BIMobjects *otherObj, bool self)
     {
         ThreeDVector xPrime = globalCoord[GIndx];
         // ThreeDVector xBar = xPrime-x0;
@@ -483,13 +483,13 @@ class BIMobjects: public mesh
         {
            // if(iElem->first == eIndx)   continue;   //delU is zero anyway!
             //get global coordinates of the element:
-            ThreeDVector x1 = otherObj.globalCoord[otherObj.element[iElem].x[0]].x;
-            ThreeDVector x2 = otherObj.globalCoord[otherObj.element[iElem].x[1]].x;
-            ThreeDVector x3 = otherObj.globalCoord[otherObj.element[iElem].x[2]].x;
+            ThreeDVector x1 = otherObj->globalCoord[otherObj->element[iElem].x[0]].x;
+            ThreeDVector x2 = otherObj->globalCoord[otherObj->element[iElem].x[1]].x;
+            ThreeDVector x3 = otherObj->globalCoord[otherObj->element[iElem].x[2]].x;
             // get midPoints of elements:
-            ThreeDVector x4 = otherObj.globalCoord[otherObj.elementMid[iElem].x[0]].x;
-            ThreeDVector x5 = otherObj.globalCoord[otherObj.elementMid[iElem].x[1]].x;
-            ThreeDVector x6 = otherObj.globalCoord[otherObj.elementMid[iElem].x[2]].x;
+            ThreeDVector x4 = otherObj->globalCoord[otherObj->elementMid[iElem].x[0]].x;
+            ThreeDVector x5 = otherObj->globalCoord[otherObj->elementMid[iElem].x[1]].x;
+            ThreeDVector x6 = otherObj->globalCoord[otherObj->elementMid[iElem].x[2]].x;
             
           //  ThreeDVector delU = uS[iElem] - uS[eIndx];
 
@@ -510,21 +510,21 @@ class BIMobjects: public mesh
                 ThreeDVector xElem = x1*(zetaIn*(2.0*zetaIn-1.0)) + x2*(xiIn*(2.0*xiIn - 1.0)) + x3*(etaIn*(2.0*etaIn-1.0)) + x4*(4.0*zetaIn*xiIn) + x5*(4.0*xiIn*etaIn) + x6*(4.0*etaIn*zetaIn);
                 
                 //linear interpolation for uS:
-                ThreeDVector uSElem = otherObj.uS[otherObj.element[iElem].x[0]]*(zetaIn) + otherObj.uS[otherObj.element[iElem].x[1]]*(xiIn) + otherObj.uS[otherObj.element[iElem].x[2]]*(etaIn);
+                ThreeDVector uSElem = otherObj->uS[otherObj->element[iElem].x[0]]*(zetaIn) + otherObj->uS[otherObj->element[iElem].x[1]]*(xiIn) + otherObj->uS[otherObj->element[iElem].x[2]]*(etaIn);
 
-                ThreeDVector xDoublePrime = otherObj.globalCoord[GIndx];
+                ThreeDVector xDoublePrime = otherObj->globalCoord[GIndx];
                 int optIndx = GIndx;
                 
                 if(!self)
                 {
-                    for (int iG = 0; iG < otherObj.nCoordFlat; iG++)    // middle pts of elements as global indices start after nCoordFlat no. of GC.
+                    for (int iG = 0; iG < otherObj->nCoordFlat; iG++)    // middle pts of elements as global indices start after nCoordFlat no. of GC.
                     {
-                        ThreeDVector tmp = otherObj.globalCoord[iG];
+                        ThreeDVector tmp = otherObj->globalCoord[iG];
                         if( (xDoublePrime - xPrime).norm() <= (tmp - xPrime).norm() )   {   xDoublePrime = tmp; optIndx = iG;   }
                     }
                 }
                 
-                ThreeDVector delU = uSElem - otherObj.uS[optIndx];    // need closest points
+                ThreeDVector delU = uSElem - otherObj->uS[optIndx];    // need closest points
 
                 ThreeDVector r = xElem - xPrime;
                 double modR = r.norm();
@@ -837,7 +837,7 @@ class BIMobjects: public mesh
                 for (int iOther = 0; iOther < otherObjects.size(); iOther++)
                 {
                     bool self = objectIndx==iOther?true:false;
-                    Top = Top + integralDLOp(eIndx, GIndx, otherObjects[iOther], self);
+                    Top = Top + integralDLOp(eIndx, GIndx, &otherObjects[iOther], self);
                 }
 
                 res = res + b + uInf - Prb + uS[GIndx] - Top;// + getNormalVector(eIndx, GIndx)*uNormalAux;    
