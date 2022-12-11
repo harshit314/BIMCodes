@@ -24,7 +24,7 @@ int main(int argc, char **argv)
     
     spheroidTemplate.refineMesh(3);
 
-    spheroidTemplate.scale(0.124656, 1.0, 0.124656);
+    spheroidTemplate.scale(0.124656, 1.0, 1.0);
 
     vector<BIMobjects> spheroids;
     
