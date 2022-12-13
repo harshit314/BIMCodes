@@ -31,9 +31,14 @@ int main(int argc, char **argv)
     
     spheroids.push_back(spheroidTemplate);
 
-    spheroidTemplate.translate(ThreeDVector(4.0, 0.0, 0.0));
+    spheroidTemplate.translate(ThreeDVector(5.0, 0.0, 0.0));
 
     spheroids.push_back(spheroidTemplate);
+
+    //define orientation of the two disks:
+    vector<ThreeDVector> dOrient;
+    dOrient.push_back(ThreeDVector(1.0, 0.0, 0.0));
+    dOrient.push_back(ThreeDVector(1.0, 0.0, 0.0));
 
     if(myRank==0)   cout<<"number of elements: "<<spheroids[0].getElementSize()<<endl;
     
@@ -69,22 +74,28 @@ int main(int argc, char **argv)
     
     double startTime = MPI_Wtime();
     
-    //******** write position of disks to a file***********//
-    ofstream outPos;
+    //******** write position and velocities of disks to a file***********//
+    ofstream outPos, outVel;
     if(myRank==0)
     {
         outPos.open("./OutputData/pos.txt", ios::out);
         outPos.precision(nPrecision);
+        outVel.open("./OutputData/vel.txt", ios::out);
+        outVel.precision(nPrecision);
         for (int iObj = 0; iObj < spheroids.size(); iObj++)
         {
             outPos<<spheroids[iObj].x0.x[0]<<'\t'<<spheroids[iObj].x0.x[1]<<'\t'<<spheroids[iObj].x0.x[2]<<'\t';       
+            outPos<<dOrient[iObj].x[0]<<'\t'<<dOrient[iObj].x[1]<<'\t'<<dOrient[iObj].x[2]<<'\t';       
         }    
         outPos<<'\n';
     }
-    for (int iEvol = 0; iEvol < 5; iEvol++)
+
+    ThreeDVector lastuS;
+    for (int iEvol = 0; iEvol < 3; iEvol++)
     {
-        for (int iter = 0; iter < 10; iter++)
+        for (int iter = 0; iter < 80; iter++)
         {
+            lastuS = spheroids[0].uS[0];
             for (int iObj = 0; iObj < spheroids.size(); iObj++)
             {
                 spheroids[iObj].resetUsNxt();
@@ -106,6 +117,7 @@ int main(int argc, char **argv)
             
             if(myRank==0)    cout<<"iteration no:"<<iter+1<<endl;
             if(myRank==0)    cout<<spheroids[0].uS[0].x[0]<<", "<<spheroids[0].uS[0].x[1]<<", "<<spheroids[0].uS[0].x[2]<<endl;
+            if( (lastuS -spheroids[0].uS[0]).norm() <= 0.0001 )  break;
         }
         
         for (int iObj = 0; iObj < spheroids.size(); iObj++)
@@ -118,13 +130,23 @@ int main(int argc, char **argv)
             //Euler method to evolve bodies:
             spheroids[iObj].translate(spheroids[iObj].uRB*dt);
             spheroids[iObj].rotate(spheroids[iObj].omega, dt); // magnitude of nHat contributes to rotation rate.
+            dOrient[iObj] = dOrient[iObj].rotate(spheroids[iObj].omega, dt);
 
             //store new Position in a file:
-            if(myRank==0)    outPos<<spheroids[iObj].x0.x[0]<<'\t'<<spheroids[iObj].x0.x[1]<<'\t'<<spheroids[iObj].x0.x[2]<<'\t';       
-    
+            if(myRank==0)    
+            {
+                outPos<<spheroids[iObj].x0.x[0]<<'\t'<<spheroids[iObj].x0.x[1]<<'\t'<<spheroids[iObj].x0.x[2]<<'\t';       
+                outPos<<dOrient[iObj].x[0]<<'\t'<<dOrient[iObj].x[1]<<'\t'<<dOrient[iObj].x[2]<<'\t';       
+                //note down the calculated velocities at previous locations.
+                outVel<<spheroids[iObj].uRB.x[0]<<'\t'<<spheroids[iObj].uRB.x[1]<<'\t'<<spheroids[iObj].uRB.x[2]<<'\t';
+                outVel<<spheroids[iObj].omega.x[0]<<'\t'<<spheroids[iObj].omega.x[1]<<'\t'<<spheroids[iObj].omega.x[2]<<'\t';
+            }
         }
-        if(myRank==0)    outPos<<'\n';
-
+        if(myRank==0)    
+        {
+            outPos<<'\n';
+            outVel<<'\n';
+        }
         for (int iObj = 0; iObj < spheroids.size(); iObj++)
         {
             if(myRank==0)   cout<<"uRB and omega for next body:"<<endl;
@@ -147,7 +169,10 @@ int main(int argc, char **argv)
     
     MPI_Finalize();
 
-    if(myRank==0)    outPos.close();
-
+    if(myRank==0)    
+    {
+        outPos.close();
+        outVel.close();
+    }
     return 0;
 }
