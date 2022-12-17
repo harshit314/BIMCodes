@@ -56,24 +56,28 @@ int main(int argc, char **argv)
     spheroid.refreshuS();
     for (int iter = 0; iter < 10; iter++)
     {
-        spheroid.resetUsNxt();
+        double totalError = 0.0;
+        double error = 0.0;    
+        spheroid.resetUsNxt();//all cpus start with zeroes and fill only there workloads.
         for (int iGC = myStartGC; iGC < myEndGC; iGC++)
         {
-            spheroid.picardIterate(iGC);
+            error += spheroid.picardIterate(iGC);
         }
         // get correct uSNxt for all processes. 
         for (int iGC = 0; iGC < spheroid.nCoordFlat; iGC++)
         {
             double senduSNxt[3] = {spheroid.uSNxt[iGC].x[0], spheroid.uSNxt[iGC].x[1], spheroid.uSNxt[iGC].x[2]};           
-            double getuSNxt[3] = {spheroid.uSNxt[iGC].x[0], spheroid.uSNxt[iGC].x[1], spheroid.uSNxt[iGC].x[2]};
-                    
+            double getuSNxt[3] = {0.0, 0.0, 0.0};
+                            
             MPI_Allreduce(&senduSNxt, &getuSNxt, 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
             spheroid.uSNxt[iGC].set(getuSNxt[0], getuSNxt[1], getuSNxt[2]);
         }
+        MPI_Allreduce(&error, &totalError, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);    
+                
         spheroid.refreshuS();
 
-        if(myRank==0)    cout<<"iteration no:"<<iter+1<<endl;
-        if(myRank==0)    cout<<spheroid.uS[0].x[0]<<", "<<spheroid.uS[0].x[1]<<", "<<spheroid.uS[0].x[2]<<endl;
+        if(myRank==0 && iter%10==0)    cout<<"iteration no:"<<iter+1<<"; totalError: "<<totalError<<endl;
+        if( totalError <= 0.0001 )  break;
     }
     spheroid.projectRB(); 
 

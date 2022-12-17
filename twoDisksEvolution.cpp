@@ -5,6 +5,11 @@
 double phi = 1.6180339887499;   //golden ratio
 double dt = 0.01;
 
+double magn(ThreeDVector x, ThreeDVector x0, ThreeDVector DeluS, double w, vector<ThreeDVector> Itnsr)
+{
+    return DeluS.norm();
+}
+
 int main(int argc, char **argv)
 {
     cout.precision(nPrecision);
@@ -26,19 +31,21 @@ int main(int argc, char **argv)
     spheroidTemplate.refineMesh(3);
 
     spheroidTemplate.scale(0.124656, 1.0, 1.0);
+    spheroidTemplate.rotate(ThreeDVector(0.0, 0.0, 1.0), M_PI/4.0);
 
     vector<BIMobjects> spheroids;
     
     spheroids.push_back(spheroidTemplate);
 
-    spheroidTemplate.translate(ThreeDVector(5.0, 0.0, 0.0));
-
+    spheroidTemplate.translate(ThreeDVector(3.0, 0.0, 0.0));
+    spheroidTemplate.rotate(ThreeDVector(0.0, 0.0, 1.0), -M_PI/2.0);
+    
     spheroids.push_back(spheroidTemplate);
 
     //define orientation of the two disks:
     vector<ThreeDVector> dOrient;
-    dOrient.push_back(ThreeDVector(1.0, 0.0, 0.0));
-    dOrient.push_back(ThreeDVector(1.0, 0.0, 0.0));
+    dOrient.push_back(ThreeDVector(cos(M_PI/4.0), sin(M_PI/4.0), 0.0));
+    dOrient.push_back(ThreeDVector(cos(M_PI/4.0), -sin(M_PI/4.0), 0.0));
 
     if(myRank==0)   cout<<"number of elements: "<<spheroids[0].getElementSize()<<endl;
     
@@ -90,34 +97,34 @@ int main(int argc, char **argv)
         outPos<<'\n';
     }
 
-    ThreeDVector lastuS;
-    for (int iEvol = 0; iEvol < 3; iEvol++)
+    for (int iEvol = 0; iEvol < 1000; iEvol++)
     {
-        for (int iter = 0; iter < 80; iter++)
+        for (int iter = 0; iter < 250; iter++)
         {
-            lastuS = spheroids[0].uS[0];
+            double totalError = 0.0;
+            double error = 0.0;
             for (int iObj = 0; iObj < spheroids.size(); iObj++)
             {
-                spheroids[iObj].resetUsNxt();
+                spheroids[iObj].resetUsNxt();   //all cpus start with zeroes and fill only there workloads.
                 for (int iGC = myStartGC; iGC < myEndGC; iGC++)
                 {
-                    spheroids[iObj].picardIterate(iGC, spheroids, iObj);
+                    error += spheroids[iObj].picardIterate(iGC, spheroids, iObj);
                 }
                 // get correct uSNxt for all processes. 
                 for (int iGC = 0; iGC < spheroids[iObj].nCoordFlat; iGC++)
                 {
                     double senduSNxt[3] = {spheroids[iObj].uSNxt[iGC].x[0], spheroids[iObj].uSNxt[iGC].x[1], spheroids[iObj].uSNxt[iGC].x[2]};           
-                    double getuSNxt[3] = {spheroids[iObj].uSNxt[iGC].x[0], spheroids[iObj].uSNxt[iGC].x[1], spheroids[iObj].uSNxt[iGC].x[2]};
+                    double getuSNxt[3] = {0.0, 0.0, 0.0};
                             
                     MPI_Allreduce(&senduSNxt, &getuSNxt, 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
                     spheroids[iObj].uSNxt[iGC].set(getuSNxt[0], getuSNxt[1], getuSNxt[2]);
                 }
+                
+                MPI_Allreduce(&error, &totalError, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);    
                 spheroids[iObj].refreshuS();  //use new values as soon as you get them.
             }
-            
-            if(myRank==0)    cout<<"iteration no:"<<iter+1<<endl;
-            if(myRank==0)    cout<<spheroids[0].uS[0].x[0]<<", "<<spheroids[0].uS[0].x[1]<<", "<<spheroids[0].uS[0].x[2]<<endl;
-            if( (lastuS -spheroids[0].uS[0]).norm() <= 0.0001 )  break;
+            if(myRank==0 && iter%10==0)    cout<<"iteration no:"<<iter+1<<"; totalError: "<<totalError<<endl;
+            if( totalError <= 0.0001 )  break;
         }
         
         for (int iObj = 0; iObj < spheroids.size(); iObj++)
@@ -161,7 +168,7 @@ int main(int argc, char **argv)
             spheroids[iObj].setClosestGIndx(spheroids, iObj);
         }
 
-        if(myRank==0)    cout<<"Evolved one step, new iterations begin now..."<<endl;
+        if(myRank==0)    cout<<"Evolved one step, starting iterations no. "<<iEvol+1<<endl;
     }
 
     double endTime = MPI_Wtime();

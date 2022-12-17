@@ -841,7 +841,7 @@ class BIMobjects: public mesh
     }
 
     //********* BIE for ith element***************
-    void picardIterate(int GIndx, vector<BIMobjects> otherObjects, int objectIndx)
+    double picardIterate(int GIndx, vector<BIMobjects> otherObjects, int objectIndx)
     {
         ThreeDVector res(0.0, 0.0, 0.0);
         {
@@ -873,7 +873,7 @@ class BIMobjects: public mesh
             uSNxt[GIndx] = res*(1.0/elementsInGlobalIndx[GIndx].size());    //take average of contribution from all elements sharing the GIndx.
             
         }
-        
+        return (uSNxt[GIndx] - uS[GIndx]).norm();
     }
 
     // call before picard iterate to set auxillary fields!
