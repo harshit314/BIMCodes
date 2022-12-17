@@ -123,8 +123,8 @@ int main(int argc, char **argv)
                 MPI_Allreduce(&error, &totalError, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);    
                 spheroids[iObj].refreshuS();  //use new values as soon as you get them.
             }
-            if(myRank==0 && iter%10==0)    cout<<"iteration no:"<<iter+1<<"; totalError: "<<totalError<<endl;
-            if( totalError <= 0.0001 )  break;
+            if(myRank==0 && iter%10==0)    cout<<"iteration no:"<<iter+1<<"; AvgError: "<<totalError/spheroids[0].nCoordFlat<<endl;
+            if( totalError/spheroids[0].nCoordFlat <= 0.0001 )  break;
         }
         
         for (int iObj = 0; iObj < spheroids.size(); iObj++)

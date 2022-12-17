@@ -119,8 +119,8 @@ int main(int argc, char **argv)
                 spheres[iObj].refreshuS();  //use new values as soon as you get them.
             }
             
-            if(myRank==0 && iter%10==0)    cout<<"iteration no:"<<iter+1<<"; totalError: "<<totalError<<endl;
-            if( totalError <= 0.0001 )  break;
+            if(myRank==0 && iter%10==0)    cout<<"iteration no:"<<iter+1<<"; AvgError: "<<totalError/spheres[0].nCoordFlat<<endl;
+            if( totalError/spheres[0].nCoordFlat <= 0.0001 )  break;
         }
         
         for (int iObj = 0; iObj < spheres.size(); iObj++)
