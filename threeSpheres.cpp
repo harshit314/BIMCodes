@@ -85,7 +85,7 @@ int main(int argc, char **argv)
         outVel.precision(nPrecision);
         for (int iObj = 0; iObj < spheres.size(); iObj++)
         {
-            outPos<<spheres[iObj].x0.x[0]<<'\t'<<spheres[iObj].x0.x[1]<<'\t'<<spheres[iObj].x0.x[2]<<'\t';       
+            outPos<<spheres[iObj].X0().x[0]<<'\t'<<spheres[iObj].X0().x[1]<<'\t'<<spheres[iObj].X0().x[2]<<'\t';       
             outPos<<dOrient[iObj].x[0]<<'\t'<<dOrient[iObj].x[1]<<'\t'<<dOrient[iObj].x[2]<<'\t';       
         }    
         outPos<<'\n';
@@ -138,7 +138,7 @@ int main(int argc, char **argv)
             //store new Position in a file:
             if(myRank==0)    
             {
-                outPos<<spheres[iObj].x0.x[0]<<'\t'<<spheres[iObj].x0.x[1]<<'\t'<<spheres[iObj].x0.x[2]<<'\t';       
+                outPos<<spheres[iObj].X0().x[0]<<'\t'<<spheres[iObj].X0().x[1]<<'\t'<<spheres[iObj].X0().x[2]<<'\t';       
                 outPos<<dOrient[iObj].x[0]<<'\t'<<dOrient[iObj].x[1]<<'\t'<<dOrient[iObj].x[2]<<'\t';       
                 //note down the calculated velocities at previous locations.
                 outVel<<spheres[iObj].uRB.x[0]<<'\t'<<spheres[iObj].uRB.x[1]<<'\t'<<spheres[iObj].uRB.x[2]<<'\t';

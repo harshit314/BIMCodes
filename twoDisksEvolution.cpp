@@ -30,7 +30,7 @@ int main(int argc, char **argv)
     
     spheroidTemplate.refineMesh(3);
 
-    spheroidTemplate.scale(0.124656, 1.0, 1.0);
+    spheroidTemplate.scale(0.5, 1.0, 1.0);
     spheroidTemplate.rotate(ThreeDVector(0.0, 0.0, 1.0), M_PI/4.0);
 
     vector<BIMobjects> spheroids;
@@ -91,7 +91,7 @@ int main(int argc, char **argv)
         outVel.precision(nPrecision);
         for (int iObj = 0; iObj < spheroids.size(); iObj++)
         {
-            outPos<<spheroids[iObj].x0.x[0]<<'\t'<<spheroids[iObj].x0.x[1]<<'\t'<<spheroids[iObj].x0.x[2]<<'\t';       
+            outPos<<(spheroids[iObj].X0()).x[0]<<'\t'<<spheroids[iObj].X0().x[1]<<'\t'<<spheroids[iObj].X0().x[2]<<'\t';       
             outPos<<dOrient[iObj].x[0]<<'\t'<<dOrient[iObj].x[1]<<'\t'<<dOrient[iObj].x[2]<<'\t';       
         }    
         outPos<<'\n';
@@ -142,7 +142,7 @@ int main(int argc, char **argv)
             //store new Position in a file:
             if(myRank==0)    
             {
-                outPos<<spheroids[iObj].x0.x[0]<<'\t'<<spheroids[iObj].x0.x[1]<<'\t'<<spheroids[iObj].x0.x[2]<<'\t';       
+                outPos<<spheroids[iObj].X0().x[0]<<'\t'<<spheroids[iObj].X0().x[1]<<'\t'<<spheroids[iObj].X0().x[2]<<'\t';       
                 outPos<<dOrient[iObj].x[0]<<'\t'<<dOrient[iObj].x[1]<<'\t'<<dOrient[iObj].x[2]<<'\t';       
                 //note down the calculated velocities at previous locations.
                 outVel<<spheroids[iObj].uRB.x[0]<<'\t'<<spheroids[iObj].uRB.x[1]<<'\t'<<spheroids[iObj].uRB.x[2]<<'\t';

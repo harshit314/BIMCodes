@@ -114,12 +114,15 @@ class ThreeDVector
 class mesh
 {   
     protected:
+    // center of the mesh in 3d space.
+    ThreeDVector x0;
     //for each element: key labels the element; 3d vector stores global labels of three vertices that make up the element.
     unordered_map<int, ThreeDVector> globalCoord, element, nextElement, elementMid;    
     //store element indices in global index:
     unordered_map<int, vector<int> > elementsInGlobalIndx;    //elementsInGlobalIndx is a map, elementsInGlobalIndx[i] is a vector of int which has list of elements that contain the global index i. 
     // each iteration appends globalCoord but all elements need to be recalculated.
     
+
     // return the labels of 2-simplices which contain the 0-simplex denoted by input argument label:
     vector<int> whichElem(int label)   
     {
@@ -307,9 +310,7 @@ class mesh
     int nCoord; 
     // nCoordFlat is no. of global elements when flat elements are used.
     int nCoordFlat; 
-    // center of the mesh in 3d space.
-    ThreeDVector x0;
-
+    
     // size must be 12 to begin with an icosahedron
     mesh(ThreeDVector * pts, int size)  
     {
@@ -366,6 +367,7 @@ class mesh
     
     }
 
+    ThreeDVector X0()    {return x0;}
     //*********define functions to transform the mesh*************
     //remember to update x0 and area after each transformation!
 
@@ -470,7 +472,7 @@ class BIMobjects: public mesh
         for (int iGC = 0; iGC < nCoordFlat; iGC++)
         {
             uS[iGC] = ThreeDVector(0.0, -1.0, 0.0); // uS defined for each 3 nodes of an element.
-            uSNxt[iGC] = ThreeDVector(0.0, 0.0, 0.0);   // need to be zero after each iteration.
+            uSNxt[iGC] = ThreeDVector(0.0, -1.0, 0.0);   // need to be zero after each iteration.
         }
     }
 
