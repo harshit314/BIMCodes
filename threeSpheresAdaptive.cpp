@@ -283,13 +283,13 @@ int main(int argc, char **argv)
     double endTime = MPI_Wtime();
     if(myRank==0)   cout<<"time taken: "<<(endTime-startTime)<<endl;
     
-    MPI_Finalize();
-
     if(myRank==0)    
     {
         outPos.close();
         outVel.close();
     }
+
+    MPI_Finalize();
 
     return 0;
 }
