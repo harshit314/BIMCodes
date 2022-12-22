@@ -8,10 +8,9 @@ double dt = 0.5, tFinal = 40.0, dtMin = 0.01;
 int nSpheres = 3;
 
 //Error bounds:
-double PicardErrorTolerance = 0.0001, dtTolerance = 0.0001;
+double PicardErrorTolerance = 0.0001, dtTolerance = 0.00004;
 
 vector<BIMobjects> spheres;
-ofstream outPos, outVel;
 
 //define orientation of the bodies:
 vector<ThreeDVector> dOrient;
@@ -196,12 +195,15 @@ int main(int argc, char **argv)
     cout<<"myRank:"<<myRank<<" myStartGC:"<<myStartGC<<" myEndGC:"<<myEndGC<<endl;
 
     //******** write position and velocities of spheres to a file***********//
+    ofstream outPos, outVel, outTym;
     if(myRank==0)
     {
         outPos.open("./OutputData/posSphere.txt", ios::out);
         outPos.precision(nPrecision);
         outVel.open("./OutputData/velSphere.txt", ios::out);
         outVel.precision(nPrecision);
+        outTym.open("./OutputData/time.txt", ios::out);
+        outTym.precision(nPrecision);
         for (int iObj = 0; iObj < nSpheres; iObj++)
         {
             outPos<<spheres[iObj].X0().x[0]<<'\t'<<spheres[iObj].X0().x[1]<<'\t'<<spheres[iObj].X0().x[2]<<'\t';       
@@ -252,7 +254,7 @@ int main(int argc, char **argv)
         }
         
         //update tCurr once correct dt is calculated:
-        if(dtNext>2.0)  dtNext = 2.0;
+        if(dtNext>5.0)  dtNext = 5.0;
         tCurr += dt;
         if(tCurr + dtNext >= tFinal)  dtNext = tFinal-tCurr;
         
@@ -262,21 +264,20 @@ int main(int argc, char **argv)
         {
             ThreeDVector nHat = DelRot[i].normalize();
             double dPhi = DelRot[i].norm();
-            dOrient[i].rotate(nHat, dPhi);
+            dOrient[i] = dOrient[i].rotate(nHat, dPhi);
             //print result to a file:
             if(myRank==0)   
             {
-                cout<<"yo"<<endl;
-                outPos<<tCurr<<'\t'<<spheres[i].X0().x[0]<<'\t'<<spheres[i].X0().x[1]<<'\t'<<spheres[i].X0().x[2]<<'\t';
+                outPos<<spheres[i].X0().x[0]<<'\t'<<spheres[i].X0().x[1]<<'\t'<<spheres[i].X0().x[2]<<'\t';
                 outPos<<dOrient[i].x[0]<<'\t'<<dOrient[i].x[1]<<'\t'<<dOrient[i].x[2]<<'\t';       
-                outVel<<tCurr<<'\t'<<spheres[i].uRB.x[0]<<'\t'<<spheres[i].uRB.x[1]<<'\t'<<spheres[i].uRB.x[2]<<'\t';
+                outVel<<spheres[i].uRB.x[0]<<'\t'<<spheres[i].uRB.x[1]<<'\t'<<spheres[i].uRB.x[2]<<'\t';
                 outVel<<spheres[i].omega.x[0]<<'\t'<<spheres[i].omega.x[1]<<'\t'<<spheres[i].omega.x[2]<<'\t';
             }
         }
         tList.push_back(tCurr);
         if(myRank==0) { outPos<<'\n'; outVel<<'\n';   } 
         dt = dtNext;
-        if(myRank==0)   cout<<"dtNext"<<dtNext<<", Time evolved: "<<tCurr<<endl;
+        if(myRank==0)   cout<<"dtNext: "<<dtNext<<", Time evolved: "<<tCurr<<endl;
     }
 
 
@@ -285,6 +286,11 @@ int main(int argc, char **argv)
     
     if(myRank==0)    
     {
+        for (int iT = 0; iT < tList.size(); iT++)
+        {
+            outTym<<tList[iT]<<'\n';
+        }
+
         outPos.close();
         outVel.close();
     }
