@@ -1,24 +1,19 @@
 //BIMcurvedLinU contains all necessary header files and variables.
 #include"./Headers/BIMcurvedLinUinteractions.h"
-#include<mpi.h>
+#include<mpi/mpi.h>
 
 double phi = 1.6180339887499;   //golden ratio
-double dt = 0.5, tFinal = 40.0, dtMin = 0.01;
+double dt = 0.5, tFinal = 90.0, dtMin = 0.01;
 
 int nSpheres = 3;
 
 //Error bounds:
 double PicardErrorTolerance = 0.0001, dtTolerance = 0.00004;
 
-vector<BIMobjects> spheres;
-
-//define orientation of the bodies:
-vector<ThreeDVector> dOrient;
-    
 //mpi variables.
 int worldSize, myRank, myStartGC, myEndGC;
 
-void setV(ThreeDVector *posDx, ThreeDVector *dTheta)
+void setV(vector<BIMobjects> & spheres, ThreeDVector *posDx, ThreeDVector *dTheta)
 {
     //uSNxt holds last iterated value, set up Prb and P1 for next iterations now:
     for (int iObj = 0; iObj < nSpheres; iObj++)
@@ -54,8 +49,12 @@ void setV(ThreeDVector *posDx, ThreeDVector *dTheta)
             spheres[iObj].refreshuS();  //use new values as soon as you get them.
         }
         
-        if(myRank==0 && iter%10==0)    cout<<"iteration no:"<<iter+1<<"; AvgError: "<<totalError/spheres[0].nCoordFlat<<endl;
-        if( totalError/spheres[0].nCoordFlat <= PicardErrorTolerance )  break;
+        //if(myRank==0 && iter%10==0)    cout<<"iteration no:"<<iter+1<<"; AvgError: "<<totalError/spheres[0].nCoordFlat<<endl;
+        if( totalError/spheres[0].nCoordFlat <= PicardErrorTolerance )  
+        {
+            if(myRank==0)    cout<<"iteration no:"<<iter+1<<"; AvgError: "<<totalError/spheres[0].nCoordFlat<<endl;
+            break;
+        }
     }
         
     for (int iObj = 0; iObj < nSpheres; iObj++)
@@ -67,7 +66,7 @@ void setV(ThreeDVector *posDx, ThreeDVector *dTheta)
     }
 }
 
-double RKF4Evolve(ThreeDVector *DelPos, ThreeDVector *DelRot, double delT)
+double RKF4Evolve(vector<BIMobjects> & spheres, ThreeDVector *DelPos, ThreeDVector *DelRot, double delT)
 {
     double TE = 0.0;
     
@@ -116,7 +115,7 @@ double RKF4Evolve(ThreeDVector *DelPos, ThreeDVector *DelRot, double delT)
             }
         }
         
-        setV(delx, dTheta); //sets velocity after translating every body by corresponding delx's and rotating by dTheta's.
+        if(m!=0)    setV(spheres, delx, dTheta); //sets velocity after translating every body by corresponding delx's and rotating by dTheta's.
         for (int i = 0; i < nSpheres; i++)
         {
             //bring every sphere back to their previous configuration:
@@ -131,8 +130,8 @@ double RKF4Evolve(ThreeDVector *DelPos, ThreeDVector *DelRot, double delT)
     for (int i = 0; i < nSpheres; i++)
     {
         // think of DelPos as posNext - posCurrent;
-        DelPos[i] = ( kV[0][i]*(47.0/450.0) + kV[2][i]*(12.0/25.0) + kV[3][i]*(32.0/225.0) + kV[4][i]*(1.0/30.0) + kV[5][i]*(6.0/25.0) )*(delT);   //no contribution from kV[1]
-        DelRot[i] = ( kOmega[0][i]*(47.0/450.0) + kOmega[2][i]*(12.0/25.0) + kOmega[3][i]*(32.0/225.0) + kOmega[4][i]*(1.0/30.0) + kOmega[5][i]*(6.0/25.0) )*(delT);   //no contribution from kOmega[1]
+        DelPos[i] = ( kV[0][i]*(47.0/450.0) + kV[2][i]*(12.0/25.0) + kV[3][i]*(32.0/225.0) + kV[4][i]*(1.0/30.0) + kV[5][i]*(6.0/25.0) );   //no contribution from kV[1]
+        DelRot[i] = ( kOmega[0][i]*(47.0/450.0) + kOmega[2][i]*(12.0/25.0) + kOmega[3][i]*(32.0/225.0) + kOmega[4][i]*(1.0/30.0) + kOmega[5][i]*(6.0/25.0) );   //no contribution from kOmega[1]
     
         TE += pow( (kV[0][i]*(-1.0/150.0) + kV[2][i]*(3.0/100.0) + kV[3][i]*(-16.0/75.0) +kV[4][i]*(-1.0/20.0) + kV[5][i]*(6.0/25.0)).norm(), 2.0);
         TE += pow( (kOmega[0][i]*(-1.0/150.0) + kOmega[2][i]*(3.0/100.0) + kOmega[3][i]*(-16.0/75.0) +kOmega[4][i]*(-1.0/20.0) + kOmega[5][i]*(6.0/25.0)).norm(), 2.0);
@@ -146,7 +145,7 @@ int main(int argc, char **argv)
 {
     cout.precision(nPrecision);
     
-    //Initialize MPI:    
+    //Initialize MPI: 
     int workloadVCalc[worldSize];
 
     MPI_Init(&argc, &argv);
@@ -161,6 +160,7 @@ int main(int argc, char **argv)
     
     sphereTemplate.refineMesh(3);
 
+    vector<BIMobjects> spheres;
     spheres.push_back(sphereTemplate);
 
     sphereTemplate.translate(ThreeDVector(4.50, 0.0, 0.0));
@@ -170,6 +170,7 @@ int main(int argc, char **argv)
     spheres.push_back(sphereTemplate);
 
     //initialize orientation vectors of bodies:
+    vector<ThreeDVector> dOrient;
     dOrient.push_back(ThreeDVector(1.0, 0.0, 0.0));
     dOrient.push_back(ThreeDVector(1.0, 0.0, 0.0));
     dOrient.push_back(ThreeDVector(1.0, 0.0, 0.0));
@@ -218,6 +219,20 @@ int main(int argc, char **argv)
     {
         DelPos[iS] = ThreeDVector(0.0, 0.0, 0.0);
         DelRot[iS] = ThreeDVector(0.0, 0.0, 0.0);
+
+        // set closestGIndx for each pair of BIMobjects:
+        spheres[iS].setClosestGIndx(spheres, iS);
+    }
+    setV(spheres, DelPos, DelRot); // translate and rotate each body and calculate the velocity of this new configuration.
+    //store velocity:
+    if(myRank==0)
+    {
+        for (int iObj = 0; iObj < nSpheres; iObj++)
+        {    
+            outVel<<spheres[iObj].uRB.x[0]<<'\t'<<spheres[iObj].uRB.x[1]<<'\t'<<spheres[iObj].uRB.x[2]<<'\t';
+            outVel<<spheres[iObj].omega.x[0]<<'\t'<<spheres[iObj].omega.x[1]<<'\t'<<spheres[iObj].omega.x[2]<<'\t';
+        }
+        outVel<<'\n';
     }
 
     vector<double> tList;
@@ -234,7 +249,7 @@ int main(int argc, char **argv)
             spheres[iObj].setClosestGIndx(spheres, iObj);
         }
 
-        double TE = RKF4Evolve(DelPos, DelRot, dt);
+        double TE = RKF4Evolve(spheres, DelPos, DelRot, dt);
         dtNext = 0.9*dt*pow(tolerance/TE, 0.2);
         
         while(TE > tolerance)
@@ -242,23 +257,23 @@ int main(int argc, char **argv)
             if(dtNext<=dtMin)   
             {
                 dt = dtMin;
-                TE = RKF4Evolve(DelPos, DelRot, dt);
+                TE = RKF4Evolve(spheres, DelPos, DelRot, dt);
                 dtNext = 0.9*dt*pow(tolerance/TE, 0.2);
                 dtNext = dtNext<=dtMin?dtMin:dtNext;
                 break;
             }
              
             dt = dtNext;
-            TE = RKF4Evolve(DelPos, DelRot, dt);
+            TE = RKF4Evolve(spheres, DelPos, DelRot, dt);
             dtNext = 0.9*dt*pow(tolerance/TE, 0.2);   
         }
         
         //update tCurr once correct dt is calculated:
-        if(dtNext>5.0)  dtNext = 5.0;
+        if(dtNext>4.0)  dtNext = 4.0;
         tCurr += dt;
         if(tCurr + dtNext >= tFinal)  dtNext = tFinal-tCurr;
         
-        setV(DelPos, DelRot); // translate and rotate each body and calculate the velocity of this new configuration.
+        setV(spheres, DelPos, DelRot); // translate and rotate each body and calculate the velocity of this new configuration.
         //update next step and print in file:
         for (int i = 0; i < nSpheres; i++)
         {
@@ -290,9 +305,9 @@ int main(int argc, char **argv)
         {
             outTym<<tList[iT]<<'\n';
         }
-
         outPos.close();
         outVel.close();
+        outTym.close();
     }
 
     MPI_Finalize();

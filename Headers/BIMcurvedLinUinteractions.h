@@ -334,6 +334,8 @@ class mesh
         x0 = ThreeDVector(0.0, 0.0, 0.0);
     }
 
+    mesh(){}
+
     void refineMesh(int nTimes)
     {
         for (int i = 0; i < nTimes; i++)
@@ -631,6 +633,9 @@ class BIMobjects: public mesh
        // updateArea();
     }
 
+    BIMobjects()    : mesh()
+    {  }
+    
     void resetUsNxt()
     {
         uSNxt.clear();
@@ -649,7 +654,8 @@ class BIMobjects: public mesh
         getItensor();
     }
 
-    void setClosestGIndx(vector<BIMobjects> otherObjects, int objIndx)
+    //send vectors by reference:
+    void setClosestGIndx(vector<BIMobjects>& otherObjects, int objIndx)
     {
         closestGIndx.clear();
         for (int jObj = 0; jObj < otherObjects.size(); jObj++)
@@ -843,7 +849,7 @@ class BIMobjects: public mesh
     }
 
     //********* BIE for ith element***************
-    double picardIterate(int GIndx, vector<BIMobjects> otherObjects, int objectIndx)
+    double picardIterate(int GIndx, vector<BIMobjects>& otherObjects, int objectIndx)
     {
         ThreeDVector res(0.0, 0.0, 0.0);
         {
