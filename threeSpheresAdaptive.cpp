@@ -3,7 +3,7 @@
 #include<mpi/mpi.h>
 
 double phi = 1.6180339887499;   //golden ratio
-double dt = 0.5, tFinal = 90.0, dtMin = 0.01;
+double dt = 0.5, tFinal = 110.0, dtMin = 0.01;
 
 int nSpheres = 3;
 
@@ -210,7 +210,7 @@ int main(int argc, char **argv)
             outPos<<spheres[iObj].X0().x[0]<<'\t'<<spheres[iObj].X0().x[1]<<'\t'<<spheres[iObj].X0().x[2]<<'\t';       
             outPos<<dOrient[iObj].x[0]<<'\t'<<dOrient[iObj].x[1]<<'\t'<<dOrient[iObj].x[2]<<'\t';       
         }    
-        outPos<<'\n';
+        outPos<<endl;
     }
     
     //setup variables for RK45 adaptive time stepping:
@@ -232,7 +232,7 @@ int main(int argc, char **argv)
             outVel<<spheres[iObj].uRB.x[0]<<'\t'<<spheres[iObj].uRB.x[1]<<'\t'<<spheres[iObj].uRB.x[2]<<'\t';
             outVel<<spheres[iObj].omega.x[0]<<'\t'<<spheres[iObj].omega.x[1]<<'\t'<<spheres[iObj].omega.x[2]<<'\t';
         }
-        outVel<<'\n';
+        outVel<<endl;
     }
 
     vector<double> tList;
@@ -290,7 +290,7 @@ int main(int argc, char **argv)
             }
         }
         tList.push_back(tCurr);
-        if(myRank==0) { outPos<<'\n'; outVel<<'\n';   } 
+        if(myRank==0) { outPos<<endl; outVel<<endl;   } 
         dt = dtNext;
         if(myRank==0)   cout<<"dtNext: "<<dtNext<<", Time evolved: "<<tCurr<<endl;
     }
@@ -303,7 +303,7 @@ int main(int argc, char **argv)
     {
         for (int iT = 0; iT < tList.size(); iT++)
         {
-            outTym<<tList[iT]<<'\n';
+            outTym<<tList[iT]<<endl;
         }
         outPos.close();
         outVel.close();
