@@ -873,10 +873,10 @@ class BIMobjects: public mesh
                 for (int iOther = 0; iOther < otherObjects.size(); iOther++)
                 {
                     bool self = objectIndx==iOther?true:false;
-                    Top = Top + integralDLOp(eIndx, GIndx, &otherObjects[iOther], closestGIndx[iOther], self);
+                    Top = Top + integralDLOp(eIndx, GIndx, &otherObjects[iOther], closestGIndx[iOther], self)*2.0;
                 }
 
-                res = res + b + uInf - Prb + uS[GIndx] - Top;// + getNormalVector(eIndx, GIndx)*uNormalAux;    
+                res = res + b + uInf - Prb + uS[GIndx] - Top + getNormalVector(eIndx, GIndx)*uNormalAux;    
             }
             uSNxt[GIndx] = res*(1.0/elementsInGlobalIndx[GIndx].size());    //take average of contribution from all elements sharing the GIndx.
             
@@ -890,7 +890,7 @@ class BIMobjects: public mesh
         uS = uSNxt; 
         uRBAux = integrateVectorfunc(&BIMobjects::getURB);
         omegaAux = integrateVectorfunc(&BIMobjects::getOmegaRB);
-     //   uNormalAux = integratefuncDotDa(&BIMobjects::getUnormal);
+        uNormalAux = integratefuncDotDa(&BIMobjects::getUnormal);
     }
 
     // after picard iterations, get uS using uS->Prb[uS]; (earlier uS was auxillary!)
